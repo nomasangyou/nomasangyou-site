@@ -1,0 +1,12 @@
+# 移行作業の指示ファイル（リポジトリに含めない）
+nomasangyou-migration.md
+
+# 旧サイトのクロール結果・作業用ファイル（リポジトリに含めない）
+_work/
+crawl/
+*.orig.*
+
+# OS・エディタ
+.DS_Store
+Thumbs.db
+*.swp
