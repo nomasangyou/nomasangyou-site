@@ -22,25 +22,24 @@
 </head>
 <body class="page-equipment">
 <!-- ===== 共通ヘッダー（全ページ同じ。変更するときは全ページを揃える） ===== -->
+<div class="site-top">
 <header class="site-header">
-  <div class="site-header__inner">
-    <a class="site-logo" href="../"><img src="../assets/img/common/logo.png" alt="株式会社野間産業" width="313" height="143" decoding="async"></a>
-    <p class="site-title"><a href="../">株式会社　野間産業</a></p>
-  </div>
+  <a class="site-logo" href="../"><img src="../assets/img/common/logo.png" alt="株式会社野間産業" width="145" height="66" decoding="async"></a>
+  <p class="site-title"><a href="../">株式会社　野間産業</a></p>
 </header>
 <nav class="global-nav" aria-label="メインメニュー">
   <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="global-nav-inner" aria-label="メニュー"><span class="nav-toggle__bars"></span></button>
   <div class="global-nav__inner" id="global-nav-inner">
     <ul class="global-nav__list">
       <li class="global-nav__item has-sub is-parent"><a href="../">ホーム</a>
-        <button type="button" class="global-nav__expand" aria-expanded="false" aria-label="開閉"></button>
+        <button type="button" class="global-nav__expand" aria-expanded="false" aria-label="ホームのサブメニュー"></button>
         <ul class="global-nav__sub">
           <li><a href="../会社概要-1/">会社概要</a></li>
           <li class="is-current"><a href="../機材センター/" aria-current="page">機材センター</a></li>
         </ul>
       </li>
       <li class="global-nav__item has-sub"><a href="../業務内容/">業務内容</a>
-        <button type="button" class="global-nav__expand" aria-expanded="false" aria-label="開閉"></button>
+        <button type="button" class="global-nav__expand" aria-expanded="false" aria-label="業務内容のサブメニュー"></button>
         <ul class="global-nav__sub">
           <li><a href="../業務内容/近年の施工実績/">近年の施工実績</a></li>
           <li><a href="../業務内容/工事経歴/">工事経歴</a></li>
@@ -48,68 +47,84 @@
         </ul>
       </li>
       <li class="global-nav__item"><a href="../関連企業/">関連企業</a></li>
-      <li class="global-nav__item"><a href="../お問合せフォーム/">お問い合わせフォーム</a></li>
+      <li class="global-nav__item global-nav__item--contact"><a href="../お問合せフォーム/">お問い合わせフォーム</a></li>
     </ul>
   </div>
 </nav>
+</div>
 <!-- ===== 共通ここまで ===== -->
-<div class="site-body">
-<div class="site-body__inner">
-<main class="content" id="main">
-<nav class="breadcrumb" aria-label="パンくずリスト">
-  <ol>
-    <li><a href="../">ホーム</a></li>
-    <li><a href="../機材センター/" aria-current="page">機材センター</a></li>
-  </ol>
-</nav>
+<main class="site-main" id="main">
+<!-- ===== ページ見出し帯（パンくず・見出し・サブメニュー。ページごとに変わる） ===== -->
+<div class="page-hero">
+  <div class="page-hero__inner">
+    <nav class="breadcrumb" aria-label="パンくずリスト">
+      <ol>
+        <li><a href="../">ホーム</a></li>
+        <li><a href="../機材センター/" aria-current="page">機材センター</a></li>
+      </ol>
+    </nav>
+    <h1 class="page-title">機材センター</h1>
+    <nav class="subnav subnav--tabs" aria-label="サブメニュー">
+      <ul>
+        <li><a href="../会社概要-1/">会社概要</a></li>
+        <li class="is-current"><a href="../機材センター/" aria-current="page">機材センター</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+<!-- ===== 見出し帯ここまで ===== -->
+<div class="page-body">
 <div class="equipment">
-  <h3>廿日市機材センター</h3>
-  <div class="cols">
-    <div class="col">
-      <figure class="figure"><img src="../assets/img/equipment/hatsukaichi-1.jpg" alt="" width="340" height="191" decoding="async"></figure>
-      <figure class="figure"><img src="../assets/img/equipment/hatsukaichi-2.jpg" alt="" width="340" height="191" decoding="async"></figure>
+  <section class="equipment__center">
+    <h2>廿日市機材センター</h2>
+    <div class="equipment__grid">
+      <div class="equipment__photos photo-frame">
+        <figure><img src="../assets/img/equipment/hatsukaichi-1.jpg" alt="" width="540" height="304" decoding="async"></figure>
+        <figure><img src="../assets/img/equipment/hatsukaichi-2.jpg" alt="" width="540" height="304" decoding="async"></figure>
+      </div>
+      <div class="map-frame">
+        <iframe class="map" src="https://maps.google.com/maps?q=%E5%BB%BF%E6%97%A5%E5%B8%82%E5%B8%82%E6%9C%A8%E6%9D%90%E6%B8%AF%E5%8C%979-30&amp;output=embed" title="廿日市市木材港北9-30" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
     </div>
-    <div class="col">
-      <iframe class="map" src="https://maps.google.com/maps?q=%E5%BB%BF%E6%97%A5%E5%B8%82%E5%B8%82%E6%9C%A8%E6%9D%90%E6%B8%AF%E5%8C%979-30&amp;output=embed" title="廿日市市木材港北9-30" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </section>
+  <section class="equipment__center">
+    <h2>甲田機材センター</h2>
+    <div class="equipment__grid">
+      <figure class="photo-frame"><img src="../assets/img/equipment/koda-1.jpg" alt="" width="520" height="390" loading="lazy" decoding="async"></figure>
+      <figure class="photo-frame"><img src="../assets/img/equipment/koda-2.jpg" alt="" width="520" height="390" loading="lazy" decoding="async"></figure>
     </div>
-  </div>
-  <h3 class="gap-m">甲田機材センター</h3>
-  <div class="cols">
-    <div class="col">
-      <figure class="figure"><img src="../assets/img/equipment/koda-1.jpg" alt="" width="340" height="255" loading="lazy" decoding="async"></figure>
-    </div>
-    <div class="col">
-      <figure class="figure"><img src="../assets/img/equipment/koda-2.jpg" alt="" width="340" height="255" loading="lazy" decoding="async"></figure>
-    </div>
-  </div>
+  </section>
+</div>
 </div>
 </main>
-<!-- ===== 共通サイドバー（サブメニュー以外は全ページ同じ） ===== -->
-<aside class="sidebar">
-<nav class="subnav" aria-label="サブメニュー">
-  <ul>
-    <li><a href="../会社概要-1/">会社概要</a></li>
-    <li class="is-current"><a href="../機材センター/" aria-current="page">機材センター</a></li>
-  </ul>
-</nav>
-<div class="sidebar-box">
-  <figure class="figure figure--center"><img src="../assets/img/common/side-photo.jpg" alt="" width="164" height="219" loading="lazy" decoding="async"></figure>
-  <p class="side-company">株式会社　野間産業</p>
-  <p class="side-address">広島県広島市中区大手町5-19-17<br>TEL　082-504-7663</p>
-  <hr>
-  <p class="side-lead">地盤改良、杭工事に関する　ご相談はこちらから</p>
-  <p class="cta"><a href="../お問合せフォーム/">お問い合わせ</a></p>
-  <figure class="figure figure--center side-badge"><img src="../assets/img/common/action-bousai.jpg" alt="" width="160" height="160" loading="lazy" decoding="async"></figure>
-  <hr>
-  <figure class="figure figure--center side-badge"><img src="../assets/img/common/kenko-sengen.png" alt="" width="127" height="159" loading="lazy" decoding="async"></figure>
-</div>
+<!-- ===== 共通お問い合わせ帯（全ページ同じ。旧サイドバーの内容） ===== -->
+<aside class="site-contact" aria-labelledby="site-contact-lead">
+  <div class="site-contact__inner">
+    <figure class="site-contact__photo"><img src="../assets/img/common/side-photo.jpg" alt="" width="195" height="260" loading="lazy" decoding="async"></figure>
+    <div class="site-contact__body">
+      <p class="site-contact__lead" id="site-contact-lead"><span>地盤改良、杭工事に関する　</span><span>ご相談はこちらから</span></p>
+      <div class="site-contact__actions">
+        <p class="cta"><a href="../お問合せフォーム/">お問い合わせ</a></p>
+        <p class="site-contact__tel">TEL　082-504-7663</p>
+      </div>
+      <div class="site-contact__company">
+        <p class="site-contact__name">株式会社　野間産業</p>
+        <p class="site-contact__address">広島県広島市中区大手町5-19-17</p>
+      </div>
+    </div>
+  </div>
 </aside>
-</div>
-</div>
 <!-- ===== 共通フッター（全ページ同じ） ===== -->
 <footer class="site-footer">
   <div class="site-footer__inner">
-    <p><a href="../j/privacy/">プライバシーポリシー</a> | <a href="../sitemap/">サイトマップ</a><br>Copyright © 2018-<span class="js-year">2026</span> 株式会社野間産業 All Rights Reserved.</p>
+    <ul class="site-footer__badges">
+      <li><img src="../assets/img/common/action-bousai.jpg" alt="" width="144" height="144" loading="lazy" decoding="async"></li>
+      <li><img src="../assets/img/common/kenko-sengen.png" alt="" width="115" height="144" loading="lazy" decoding="async"></li>
+    </ul>
+    <div class="site-footer__meta">
+      <p class="site-footer__links"><a href="../j/privacy/">プライバシーポリシー</a> | <a href="../sitemap/">サイトマップ</a></p>
+      <p class="site-footer__copy">Copyright © 2018-<span class="js-year">2026</span> 株式会社野間産業 <span class="nw">All Rights Reserved.</span></p>
+    </div>
   </div>
 </footer>
 </body>
