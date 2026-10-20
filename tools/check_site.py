@@ -24,16 +24,41 @@ NO_CURRENT = {"sitemap/", "j/privacy/", "404.html"}
 problems = []
 # セキュリティの指定（CSP）。全ページの <head> に同じものを1つ置く（基準は index.html）
 CSP_RE = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
-CSP_NEED = ["default-src 'none'", "script-src 'self'", "style-src 'self'", "base-uri 'self'"]
+# 決まった形（ゆるめない）。変えてよいのは frame-src と form-action（お問い合わせフォームを入れるとき）と、
+# script-src のハッシュ（ページ内の2つのスクリプトの中身を変えたとき）だけ
+CSP_FIXED = {"default-src": ["'none'"], "style-src": ["'self'"], "img-src": ["'self'", "data:"], "base-uri": ["'self'"]}
+CSP_DIRECTIVES = set(CSP_FIXED) | {"script-src", "frame-src", "form-action"}
+ORIGIN_RE = re.compile(r"https://[a-z0-9.-]+(?::\d+)?(?:/[^\s;,']*)?")
+HASH_RE = re.compile(r"'sha256-[A-Za-z0-9+/]{43}='")
+# ページ内に書いてよいスクリプトは2つだけ（全ページの js クラスの1行と、404.html の基準パス。下の known で見分ける）
+# 埋め込み（iframe）を置いてよいもの（ルール5）：Google マップの地図枠と、お問い合わせフォームの埋め込み枠の中
+CONTACT_PAGE = "お問合せフォーム/index.html"
+
+
+def parse_csp(csp):
+    """CSP を {指定の種類: [値, …]} にする（同じ種類が2回あるときは None を入れて知らせる）"""
+    out = {}
+    for part in csp.split(";"):
+        words = part.split()
+        if words:
+            out[words[0]] = None if words[0] in out else words[1:]
+    return out
 
 
 def csp_sources(csp, directive):
     """CSP の指定（例 frame-src）に並んでいる値の一覧"""
-    for part in csp.split(";"):
-        words = part.split()
-        if words and words[0] == directive:
-            return words[1:]
-    return []
+    return parse_csp(csp).get(directive) or []
+
+
+def frame_allowed(url):
+    """iframe の URL が CSP の frame-src に載っている読み込み元に当たるか（読み込み元だけ、または読み込み元＋パスの前方一致）"""
+    for entry in FRAME_SRC:
+        origin = re.match(r"https://[^/]+", entry).group(0)
+        if entry == origin and re.match(r"https://[^/]+", url).group(0) == origin:
+            return True
+        if entry != origin and url.startswith(entry):
+            return True
+    return False
 
 
 def script_hash(text):
@@ -119,10 +144,25 @@ _csp_index = CSP_RE.findall(read("index.html"))
 CSP = _csp_index[0] if len(_csp_index) == 1 else ""
 if not CSP:
     problems.append("index.html: セキュリティの指定 <meta http-equiv=\"Content-Security-Policy\" …> が1つではない")
-for need in CSP_NEED:
-    if CSP and need not in CSP:
-        problems.append(f"index.html: セキュリティの指定（CSP）に {need} がない（ゆるめない）")
-FRAME_ORIGINS = [u for u in csp_sources(CSP, "frame-src") if u.startswith("https://")]
+if CSP:
+    pol = parse_csp(CSP)
+    if set(pol) != CSP_DIRECTIVES or None in pol.values():
+        problems.append(f"index.html: セキュリティの指定（CSP）の種類は {', '.join(sorted(CSP_DIRECTIVES))} を1つずつ"
+                        f"（足りない: {', '.join(sorted(CSP_DIRECTIVES - set(pol))) or 'なし'}／余分・重複: {', '.join(sorted(k for k in pol if k not in CSP_DIRECTIVES or pol[k] is None)) or 'なし'}）")
+    for k, want in CSP_FIXED.items():
+        if pol.get(k) is not None and k in pol and sorted(pol[k]) != sorted(want):
+            problems.append(f"index.html: CSP の {k} は {' '.join(want)} のまま（ゆるめない）。いま: {' '.join(pol[k])}")
+    ss = pol.get("script-src") or []
+    if not ss or ss[0] != "'self'" or not all(HASH_RE.fullmatch(v) for v in ss[1:]):
+        problems.append(f"index.html: CSP の script-src は 'self' とページ内スクリプトのハッシュ（'sha256-…'）だけ（'unsafe-inline'・外部のURL・* は使わない）。いま: {' '.join(ss)}")
+    fs = pol.get("frame-src") or []
+    if not all(ORIGIN_RE.fullmatch(v) for v in fs):
+        problems.append(f"index.html: CSP の frame-src には https://… の読み込み元だけを書く（* や https: だけ、'self' は使わない）。いま: {' '.join(fs)}")
+    fa = pol.get("form-action") or []
+    if fa != ["'none'"] and not (fa and all(v == "'self'" or ORIGIN_RE.fullmatch(v) for v in fa) and any(ORIGIN_RE.fullmatch(v) for v in fa)):
+        problems.append(f"index.html: CSP の form-action は 'none'（フォームなし）か、'self' とフォームの送信先 https://… だけ。いま: {' '.join(fa)}")
+FRAME_SRC = [u for u in csp_sources(CSP, "frame-src") if ORIGIN_RE.fullmatch(u)]
+inline_hashes = set()
 
 shared = {}
 for page in pages():
@@ -152,20 +192,47 @@ for page in pages():
         problems.append(f"{r}: セキュリティの指定（CSP）の <meta> を index.html と同じものにして1つだけ置く")
     elif re.search(r"<(script|base)\b", s[: s.find("Content-Security-Policy")]):
         problems.append(f"{r}: セキュリティの指定（CSP）の <meta> は <base> と <script> より前に置く")
-    for code in re.findall(r"<script>(.*?)</script>", s, re.S):
+    for attrs, code in re.findall(r"<script\b([^>]*)>(.*?)</script>", s, re.S):
+        if re.search(r"\bsrc\s*=", attrs) or re.search(r"""type=["']application/ld\+json["']""", attrs):
+            continue
+        # 決まった2つ（js クラスの1行・404 の基準パス）は、中身を書き換えてもハッシュを直せば動く。それ以外は増やさない
+        known = (len(code) < 120 and "document.documentElement" in code and "js" in code) or (is404 and 'document.querySelector("base")' in code)
+        if attrs.strip() or not known:
+            problems.append(f"{r}: ページに直接スクリプトを書かない（セキュリティの指定で止められる。main.js に書く）: <script{attrs}>{code.strip()[:50]}…")
+            continue
+        inline_hashes.add(script_hash(code))
         if CSP and script_hash(code) not in csp_sources(CSP, "script-src"):
-            problems.append(f"{r}: ページ内のスクリプトがセキュリティの指定で止められる。全ページの CSP の script-src に {script_hash(code)} を足す"
-                            f"（中身を変えたスクリプトの古いハッシュは消す）: <script>{code[:50]}…")
+            problems.append(f"{r}: ページ内のスクリプトの中身が変わったので止められる。全ページの CSP の script-src のハッシュを {script_hash(code)} に直す"
+                            f"（古いハッシュは消す）: <script>{code[:50]}…")
+    if re.search(r"<style\b", s):
+        problems.append(f"{r}: <style> は使わない（セキュリティの指定で止められる。style.css に書く）")
+    if re.search(r"<(video|audio|source|track|object|embed)\b", s):
+        problems.append(f"{r}: 動画・音声・PDF などの埋め込み（<video> <audio> <object> <embed>）はセキュリティの指定で止められる"
+                        "（動画は YouTube などへのリンク、PDF は普通のリンクにする。ページに埋め込む必要があればオーナーに確認）")
     if re.search(r"""\son[a-z]+\s*=\s*["']""", body):
         problems.append(f"{r}: onclick= などの属性にスクリプトを書かない（セキュリティの指定で止められる。main.js に書く）")
     if re.search(r"""\sstyle\s*=\s*["']""", body):
         problems.append(f"{r}: style= 属性は使わない（セキュリティの指定で止められる。style.css に書く）")
-    for url in re.findall(r"""<iframe\b[^>]*\bsrc=["'](https://[^/"']+)""", s):
-        if url not in FRAME_ORIGINS:
-            problems.append(f"{r}: 埋め込み（iframe）{url} がセキュリティの指定で止められる。全ページの CSP の frame-src に足す")
-    for url in re.findall(r"""<form\b[^>]*\baction=["'](https://[^/"']+)""", s):
-        if url not in csp_sources(CSP, "form-action"):
-            problems.append(f"{r}: フォームの送信先 {url} がセキュリティの指定で止められる。全ページの CSP の form-action を 'none' から {url} に変える")
+    # 埋め込み（iframe）：ルール5で置いてよいのは Google マップの地図枠と、お問い合わせフォームの埋め込み枠の中だけ
+    form_at = s.find('id="contact-form"') if r == CONTACT_PAGE else -1
+    for m in re.finditer(r"""<iframe\b[^>]*?\bsrc=["']([^"']*)""", s):
+        url = html.unescape(m.group(1))
+        is_map = (url.startswith("https://maps.google.com/maps?") and "output=embed" in url) or url.startswith("https://www.google.com/maps/embed")
+        in_form = form_at >= 0 and m.start() > form_at
+        if not url.startswith("https://") or not (is_map or in_form):
+            problems.append(f"{r}: ルール5：埋め込み（iframe）はオーナーの確認なしに増やさない（Google マップとお問い合わせフォームだけ）: {url[:80]}")
+        elif not frame_allowed(url):
+            problems.append(f"{r}: 埋め込み（iframe）{url[:60]} がセキュリティの指定で止められる。全ページの CSP の frame-src に"
+                            f" {re.match(r'https://[^/]+', url).group(0)} を足す")
+    for m in re.finditer(r"<form\b([^>]*)>", s):
+        action = re.search(r"""\baction=["']([^"']*)""", m.group(1))
+        url = action.group(1) if action else ""
+        if not url.startswith("https://"):
+            problems.append(f"{r}: フォームの送信先は https://… の外部サービスだけ（自サイト・mailto: などはセキュリティの指定で止められる）: action={url or '（なし）'}")
+        elif re.match(r"https://[^/]+", url).group(0) not in csp_sources(CSP, "form-action"):
+            o = re.match(r"https://[^/]+", url).group(0)
+            problems.append(f"{r}: フォームの送信先 {o} がセキュリティの指定で止められる。全ページの CSP の form-action を 'self' {o} にする"
+                            "（'self' は送信後に自サイトのお礼ページへ戻る設定のため）")
 
     # 3. 内部リンク・画像のリンク切れ（外部URL・#・mailto・tel は対象外）
     base_dir = ROOT if is404 else os.path.dirname(page)
@@ -192,8 +259,8 @@ for page in pages():
         tag, url = m.group(1).lower(), m.group(2)
         if tag == "a" or (tag == "link" and 'rel="canonical"' in m.group(0)):
             continue
-        if tag == "iframe" and re.match(r"https://[^/]+", url) and re.match(r"https://[^/]+", url).group(0) in FRAME_ORIGINS:
-            continue  # Google マップ・お問い合わせフォームなど、CSP の frame-src に載せた埋め込み（載せていなければ上で指摘）
+        if tag == "iframe":
+            continue  # 埋め込みは上の「ルール5：埋め込み」で確かめている
         problems.append(f"{r}: 外部のライブラリ・フォント・埋め込みは使わない（ルール5）: <{tag}> {url[:80]}")
     for url in re.findall(r"""url\(\s*["']?((?:https?:)?//[^"')\s]*)""", s):
         problems.append(f"{r}: 外部のファイルを読まない（ルール5）: url({url[:80]})")
@@ -279,6 +346,11 @@ for name, variants in shared.items():
         groups = sorted(variants.values(), key=len, reverse=True)
         odd = [p for g in groups[1:] for p in g]
         problems.append(f"共通部分「{name}」が他のページと違う: {', '.join(odd)}")
+
+# CSP の script-src に、どのページでも使われていないハッシュが残っていないか
+for h in csp_sources(CSP, "script-src")[1:]:
+    if HASH_RE.fullmatch(h) and h not in inline_hashes:
+        problems.append(f"使われていないハッシュ {h} を全ページの CSP の script-src から消す")
 
 # 7. サイトマップ（sitemap/index.html と 404.html の一覧）はグローバルナビと同じページを同じ順に
 for r in ("sitemap/index.html", "404.html"):

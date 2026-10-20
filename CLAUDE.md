@@ -33,11 +33,11 @@
 2. **頼まれていない文章・数値・会社情報を変えない。** 誤字や古い表記に気づいたら、直さずに報告する。
 3. **共通部分は全ページで揃える。** 各HTMLの `<!-- ===== 共通… ===== -->` コメントで始まる3つの部分（ヘッダー＋グローバルナビ、お問い合わせ帯、フッター）は全12ファイルで同じ内容。どれか1つを変えたら、残りもすべて同じように変える（違うのは下の「ページごとに変わる部分」だけ）。
 4. **リンクと画像は相対パス。** `/` から始まるパスや `https://www.nomasangyou.com/…` をリンクに使わない（github.io のプレビューでも独自ドメインでも動くようにするため）。例外は `<link rel="canonical">`・OGP（`og:url` `og:image` など）・`sitemap.xml` で、これらは `https://www.nomasangyou.com/` の絶対URL。
-5. **外部ライブラリ・CDN・Webフォントを使わない。** JSは `assets/js/main.js`、CSSは `assets/css/style.css` に書く。外部から読むのは Google マップの地図枠（キー不要の `maps.google.com/maps?q=…&output=embed`）だけ。
+5. **外部ライブラリ・CDN・Webフォントを使わない。** JSは `assets/js/main.js`、CSSは `assets/css/style.css` に書く。外部から読むのは Google マップの地図枠（キー不要の `maps.google.com/maps?q=…&output=embed`）と、お問い合わせフォームの埋め込み（下の手順）だけ。ほかの埋め込み（YouTube など）はオーナーの確認なしに増やさない。
 6. **画像は最適化してから置く**（下の手順）。旧サイトのサービス（画像配信サーバーなど）への参照は作らない（`tools/check_site.py` が検出する）。
 7. **独自ドメイン・DNS には触れない。** `CNAME` ファイルはオーナーの指示があるまで作らない。
 8. **ビルドの仕組みを持ち込まない**（静的サイトジェネレーター、npm のビルド、Jekyll など）。
-9. **セキュリティの指定（CSP）を消さない・ゆるめない。** 全ページの `<head>` の `<meta http-equiv="Content-Security-Policy" …>` は全12ファイルで同じ内容（下の「セキュリティの指定（CSP）」）。
+9. **セキュリティの指定（CSP）を消さない・ゆるめない。** 全ページの `<head>` の `<meta http-equiv="Content-Security-Policy" …>` は全12ファイルで同じ内容（下の「セキュリティの指定（CSP）」）。変えてよいのは「お問い合わせフォームを入れる」の `frame-src`／`form-action` と、ページ内スクリプトのハッシュだけ。
 
 ## ページの組み立て（上から順に）
 
@@ -70,7 +70,7 @@
   - パンくず（`<nav class="breadcrumb">`）：子ページだけに付ける（例：ホーム » 会社概要、業務内容 » 工事経歴）。最後の項目の `<a>` に `aria-current="page"`。
   - 見出し `<h1 class="page-title">`：そのページの見出し（本文にあった見出しを移したもの。見出しの無いページはナビの名前）。かっこ書きは `<span class="page-title__sub">` に入れる。狭い画面で1文字だけ次の行に残るときは、本文の見出しの中だけ `<wbr>` で区切りを入れてよい（ナビ・サブメニューの文字には入れない）。
   - サブメニュー（`<nav class="subnav subnav--tabs">`、タブ）：ホームの子ページ（会社概要・機材センター）では会社概要・機材センターを、業務内容系（業務内容と3つの子ページ）では3つの子ページを表示する。表示中のタブの `<li>` に `class="is-current"`、`<a>` に `aria-current="page"`。関連企業・お問い合わせ・サイトマップ・プライバシーポリシー・404 には付けない。
-- `404.html` だけは `<base href="/">` を使い、パスはルートからの相対（`assets/…`、`業務内容/` など）で書く。github.io でプレビューするときはスクリプトが基準を `/nomasangyou-site/` に直す。**リポジトリ名を変えたら 404.html のこの文字列も変える。**
+- `404.html` だけは `<base href="/">` を使い、パスはルートからの相対（`assets/…`、`業務内容/` など）で書く。github.io でプレビューするときはスクリプトが基準を `/nomasangyou-site/` に直す。**リポジトリ名を変えたら 404.html のこの文字列も変える**（スクリプトの中身が変わるので、全ページの CSP の script-src のハッシュも直す。値は `check_site.py` が表示する）。
 
 ## よくある作業の手順
 
@@ -105,13 +105,14 @@ im.convert("RGB").save("assets/img/xxx/yyy.jpg", "JPEG", quality=80, optimize=Tr
 4. ナビ・タブの項目が増えると狭い画面の表示も変わるので、幅320px・390px・960px（メニューが横並びに変わる幅）で折り返しを確認する。
 
 ### お問い合わせフォームを入れる
-`お問合せフォーム/index.html` の `<div class="form-embed" id="contact-form">` の中に、選んだサービスの埋め込みコード（iframe など）を入れる。中が空（コメントだけ）の間は表示されない（入れるとあいさつ文と連絡先の下に全幅で出る）。埋め込みの読み込み元（例 Google フォームなら `https://docs.google.com`）を全ページの CSP の `frame-src` に足す。iframe ではなく `<form action="https://…">` で送るサービスなら、全ページの CSP の `form-action 'none'` をその送信先に変える（どちらも足りなければ `check_site.py` が指摘する）。入れたらプライバシーポリシーの記載（委託先・reCAPTCHA など）も見直す（オーナーの確認が必要）。
+`お問合せフォーム/index.html` の `<div class="form-embed" id="contact-form">` の中に、選んだサービスの埋め込みコード（iframe など）を入れる。中が空（コメントだけ）の間は表示されない（入れるとあいさつ文と連絡先の下に全幅で出る）。埋め込みの読み込み元（例 Google フォームなら `https://docs.google.com`）を全ページの CSP の `frame-src` に足す。iframe ではなく `<form action="https://…">` で送るサービスなら、全ページの CSP の `form-action 'none'` を `'self'` とその送信先に変える（例 `form-action 'self' https://ssgform.com`。`'self'` は送信後に自サイトのお礼ページへ戻す設定でも止められないように）。埋め込みコードに `<script>`・`<style>`・`style="…"`・`onload="…"` などが入っていたら、そのままでは止められるので、`main.js`／`style.css` に移せるか確かめる（移せないものはオーナーに相談）。足りないものは `check_site.py` が指摘する。入れたらプライバシーポリシーの記載（委託先・reCAPTCHA など）も見直す（オーナーの確認が必要）。
 
 ### セキュリティの指定（CSP）
 各ページの `<head>`（viewport の次。`<base>` やスクリプトより前）にある `<meta http-equiv="Content-Security-Policy" …>` が、ページで動かしてよいものを決めている。万一ページに悪いスクリプトを差し込まれても動かないようにするためのもの。全12ファイルで同じ内容にする（`check_site.py` が確かめる）。
-- 読み込めるのは自サイトのファイル（`'self'`）だけ。例外は埋め込み（`frame-src`：いまは Google マップの `https://maps.google.com` と `https://www.google.com`）と、CSS の中の小さなアイコン（`data:`）。
-- ページ内に直接書いたスクリプト（`<script>…</script>`。いまは全ページの `js` クラスの1行と、404.html の基準パスの1つ）は、中身のハッシュ（`'sha256-…'`）を `script-src` に載せたものだけ動く。中身を1文字でも変えたら全ページの CSP のハッシュも直す（正しい値は `check_site.py` が表示する）。新しい処理は `main.js` に書く。
-- HTML に `style="…"` や `onclick="…"` を書かない（止められる）。見た目は `style.css`、動きは `main.js` に書く。
+- 自サイトから読み込めるのはスクリプト（`main.js`）・CSS（`style.css`）・画像だけ（CSS の中の小さなアイコンの `data:` も可）。外部から読めるのは埋め込みの `frame-src`（いまは Google マップの `https://maps.google.com` と `https://www.google.com`）だけ。
+- 動画・音声（`<video>` `<audio>`）、PDF などのページ内への埋め込み（`<iframe>` `<object>` `<embed>`）、Webフォント、`main.js` からの `fetch` は止められる。動画は YouTube などへのリンク、PDF は普通の `<a href>` リンクにする（ページに埋め込む必要があるならオーナーに確認する）。
+- ページ内に直接書いたスクリプト（`<script>…</script>`。いまは全ページの `js` クラスの1行と、404.html の基準パスの1つ）は、中身のハッシュ（`'sha256-…'`）を `script-src` に載せたものだけ動く。中身を1文字でも変えたら全ページの CSP のハッシュも直し、古いハッシュは消す（正しい値は `check_site.py` が表示する）。新しい処理は `main.js` に書く（ページに `<script>…</script>` を増やさない）。
+- HTML に `<style>`・`style="…"`・`onclick="…"` などを書かない（止められる）。見た目は `style.css`、動きは `main.js` に書く。
 - 外部サイトへの普通のリンク（`<a href>`）は制限されない。
 - GitHub Pages ではサーバー側の設定ができないため、他サイトの枠の中に表示されるのを防ぐ指定（`frame-ancestors`）は効かない。
 
