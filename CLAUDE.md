@@ -37,6 +37,7 @@
 6. **画像は最適化してから置く**（下の手順）。旧サイトのサービス（画像配信サーバーなど）への参照は作らない（`tools/check_site.py` が検出する）。
 7. **独自ドメイン・DNS には触れない。** `CNAME` ファイルはオーナーの指示があるまで作らない。
 8. **ビルドの仕組みを持ち込まない**（静的サイトジェネレーター、npm のビルド、Jekyll など）。
+9. **セキュリティの指定（CSP）を消さない・ゆるめない。** 全ページの `<head>` の `<meta http-equiv="Content-Security-Policy" …>` は全12ファイルで同じ内容（下の「セキュリティの指定（CSP）」）。
 
 ## ページの組み立て（上から順に）
 
@@ -104,7 +105,15 @@ im.convert("RGB").save("assets/img/xxx/yyy.jpg", "JPEG", quality=80, optimize=Tr
 4. ナビ・タブの項目が増えると狭い画面の表示も変わるので、幅320px・390px・960px（メニューが横並びに変わる幅）で折り返しを確認する。
 
 ### お問い合わせフォームを入れる
-`お問合せフォーム/index.html` の `<div class="form-embed" id="contact-form">` の中に、選んだサービスの埋め込みコード（iframe など）を入れる。中が空（コメントだけ）の間は表示されない（入れるとあいさつ文と連絡先の下に全幅で出る）。入れたらプライバシーポリシーの記載（委託先・reCAPTCHA など）も見直す（オーナーの確認が必要）。
+`お問合せフォーム/index.html` の `<div class="form-embed" id="contact-form">` の中に、選んだサービスの埋め込みコード（iframe など）を入れる。中が空（コメントだけ）の間は表示されない（入れるとあいさつ文と連絡先の下に全幅で出る）。埋め込みの読み込み元（例 Google フォームなら `https://docs.google.com`）を全ページの CSP の `frame-src` に足す。iframe ではなく `<form action="https://…">` で送るサービスなら、全ページの CSP の `form-action 'none'` をその送信先に変える（どちらも足りなければ `check_site.py` が指摘する）。入れたらプライバシーポリシーの記載（委託先・reCAPTCHA など）も見直す（オーナーの確認が必要）。
+
+### セキュリティの指定（CSP）
+各ページの `<head>`（viewport の次。`<base>` やスクリプトより前）にある `<meta http-equiv="Content-Security-Policy" …>` が、ページで動かしてよいものを決めている。万一ページに悪いスクリプトを差し込まれても動かないようにするためのもの。全12ファイルで同じ内容にする（`check_site.py` が確かめる）。
+- 読み込めるのは自サイトのファイル（`'self'`）だけ。例外は埋め込み（`frame-src`：いまは Google マップの `https://maps.google.com` と `https://www.google.com`）と、CSS の中の小さなアイコン（`data:`）。
+- ページ内に直接書いたスクリプト（`<script>…</script>`。いまは全ページの `js` クラスの1行と、404.html の基準パスの1つ）は、中身のハッシュ（`'sha256-…'`）を `script-src` に載せたものだけ動く。中身を1文字でも変えたら全ページの CSP のハッシュも直す（正しい値は `check_site.py` が表示する）。新しい処理は `main.js` に書く。
+- HTML に `style="…"` や `onclick="…"` を書かない（止められる）。見た目は `style.css`、動きは `main.js` に書く。
+- 外部サイトへの普通のリンク（`<a href>`）は制限されない。
+- GitHub Pages ではサーバー側の設定ができないため、他サイトの枠の中に表示されるのを防ぐ指定（`frame-ancestors`）は効かない。
 
 ### プライバシーポリシー
 文面はオーナーの指示なく変えない。旧サイト前提の記述（Google アナリティクス、reCAPTCHA、ホスティング事業者のアクセス解析）が残っている。改訂するときはオーナーに案を見せてから。項目は `<section class="policy__section">` の中に見出し `<h2 class="policy__title">` と本文 `<div class="policy__text">`。
@@ -115,7 +124,7 @@ im.convert("RGB").save("assets/img/xxx/yyy.jpg", "JPEG", quality=80, optimize=Tr
 ## 変更したら必ず確認する
 
 ```sh
-python3 tools/check_site.py          # リンク切れ・h1と見出し帯・共通部分の不一致・ナビの現在位置・タブ・パンくず・写真タイル・canonical/og:url・外部ファイル（ルール5）・CSS の画像・NFC・旧サービスへの参照・サイトマップ（HTML と sitemap.xml）の漏れ・404 の基準パス・画面幅の区切り
+python3 tools/check_site.py          # リンク切れ・h1と見出し帯・共通部分の不一致・ナビの現在位置・タブ・パンくず・写真タイル・canonical/og:url・セキュリティの指定（CSP）・外部ファイル（ルール5）・CSS の画像・NFC・旧サービスへの参照・サイトマップ（HTML と sitemap.xml）の漏れ・404 の基準パス・画面幅の区切り
 python3 -m http.server 8000          # http://localhost:8000/ で表示を確認（PC幅とスマホ幅）
 ```
 - 表示確認では、スマホ幅でメニューの開閉、PC幅でナビの ∨ ボタン（ドロップダウン）、トップのスライドショー、画像の拡大表示も触ってみる。

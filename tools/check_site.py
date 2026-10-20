@@ -5,6 +5,8 @@
 標準ライブラリだけで動く。問題があれば一覧を出して終了コード1で終わる。
 グローバルナビの親子関係（どのページがどのページの子か）は index.html のナビから読み取る。
 """
+import base64
+import hashlib
 import html
 import os
 import posixpath
@@ -20,6 +22,22 @@ OLD_SERVICE = [("jim" + x).encode() for x in ("do", "cdn", "static")]
 # グローバルナビの現在位置・タブ・パンくずを付けないページ
 NO_CURRENT = {"sitemap/", "j/privacy/", "404.html"}
 problems = []
+# セキュリティの指定（CSP）。全ページの <head> に同じものを1つ置く（基準は index.html）
+CSP_RE = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
+CSP_NEED = ["default-src 'none'", "script-src 'self'", "style-src 'self'", "base-uri 'self'"]
+
+
+def csp_sources(csp, directive):
+    """CSP の指定（例 frame-src）に並んでいる値の一覧"""
+    for part in csp.split(";"):
+        words = part.split()
+        if words and words[0] == directive:
+            return words[1:]
+    return []
+
+
+def script_hash(text):
+    return "'sha256-" + base64.b64encode(hashlib.sha256(text.encode("utf-8")).digest()).decode() + "'"
 
 
 def rel(p):
@@ -97,6 +115,15 @@ for d, dirs, files in os.walk(ROOT):
 if not os.path.exists(os.path.join(ROOT, ".nojekyll")):
     problems.append(".nojekyll がない（消さない）")
 
+_csp_index = CSP_RE.findall(read("index.html"))
+CSP = _csp_index[0] if len(_csp_index) == 1 else ""
+if not CSP:
+    problems.append("index.html: セキュリティの指定 <meta http-equiv=\"Content-Security-Policy\" …> が1つではない")
+for need in CSP_NEED:
+    if CSP and need not in CSP:
+        problems.append(f"index.html: セキュリティの指定（CSP）に {need} がない（ゆるめない）")
+FRAME_ORIGINS = [u for u in csp_sources(CSP, "frame-src") if u.startswith("https://")]
+
 shared = {}
 for page in pages():
     s = open(page, encoding="utf-8").read()
@@ -117,6 +144,28 @@ for page in pages():
         og = [urllib.parse.unquote(u) for u in re.findall(r'<meta property="og:url" content="([^"]*)"', s)]
         if canon != [SITE + me] or og != [SITE + me]:
             problems.append(f"{r}: canonical と og:url をこのページのURL（{SITE + me}）にする: canonical={canon} og:url={og}")
+
+    # セキュリティの指定（CSP）：全ページ同じものを、<base> とスクリプトより前に1つ。
+    # ページ内に直接書いたスクリプトは、その中身のハッシュが script-src に載っているものだけ動く
+    csps = CSP_RE.findall(s)
+    if len(csps) != 1 or csps[0] != CSP:
+        problems.append(f"{r}: セキュリティの指定（CSP）の <meta> を index.html と同じものにして1つだけ置く")
+    elif re.search(r"<(script|base)\b", s[: s.find("Content-Security-Policy")]):
+        problems.append(f"{r}: セキュリティの指定（CSP）の <meta> は <base> と <script> より前に置く")
+    for code in re.findall(r"<script>(.*?)</script>", s, re.S):
+        if CSP and script_hash(code) not in csp_sources(CSP, "script-src"):
+            problems.append(f"{r}: ページ内のスクリプトがセキュリティの指定で止められる。全ページの CSP の script-src に {script_hash(code)} を足す"
+                            f"（中身を変えたスクリプトの古いハッシュは消す）: <script>{code[:50]}…")
+    if re.search(r"""\son[a-z]+\s*=\s*["']""", body):
+        problems.append(f"{r}: onclick= などの属性にスクリプトを書かない（セキュリティの指定で止められる。main.js に書く）")
+    if re.search(r"""\sstyle\s*=\s*["']""", body):
+        problems.append(f"{r}: style= 属性は使わない（セキュリティの指定で止められる。style.css に書く）")
+    for url in re.findall(r"""<iframe\b[^>]*\bsrc=["'](https://[^/"']+)""", s):
+        if url not in FRAME_ORIGINS:
+            problems.append(f"{r}: 埋め込み（iframe）{url} がセキュリティの指定で止められる。全ページの CSP の frame-src に足す")
+    for url in re.findall(r"""<form\b[^>]*\baction=["'](https://[^/"']+)""", s):
+        if url not in csp_sources(CSP, "form-action"):
+            problems.append(f"{r}: フォームの送信先 {url} がセキュリティの指定で止められる。全ページの CSP の form-action を 'none' から {url} に変える")
 
     # 3. 内部リンク・画像のリンク切れ（外部URL・#・mailto・tel は対象外）
     base_dir = ROOT if is404 else os.path.dirname(page)
@@ -143,8 +192,8 @@ for page in pages():
         tag, url = m.group(1).lower(), m.group(2)
         if tag == "a" or (tag == "link" and 'rel="canonical"' in m.group(0)):
             continue
-        if tag == "iframe" and url.startswith("https://maps.google.com/maps?") and "output=embed" in url:
-            continue
+        if tag == "iframe" and re.match(r"https://[^/]+", url) and re.match(r"https://[^/]+", url).group(0) in FRAME_ORIGINS:
+            continue  # Google マップ・お問い合わせフォームなど、CSP の frame-src に載せた埋め込み（載せていなければ上で指摘）
         problems.append(f"{r}: 外部のライブラリ・フォント・埋め込みは使わない（ルール5）: <{tag}> {url[:80]}")
     for url in re.findall(r"""url\(\s*["']?((?:https?:)?//[^"')\s]*)""", s):
         problems.append(f"{r}: 外部のファイルを読まない（ルール5）: url({url[:80]})")
@@ -300,5 +349,5 @@ if problems:
         print(" -", p)
     sys.exit(1)
 print(f"OK: {sum(1 for _ in pages())} ページを確認しました（リンク切れ・h1と見出し帯・共通部分・ナビの現在位置・タブ・パンくず・"
-      "写真タイル・canonical/og:url・外部ファイル（ルール5）・CSS の画像・NFC・旧サービスへの参照・サイトマップ（HTML と sitemap.xml）・"
+      "写真タイル・canonical/og:url・セキュリティの指定（CSP）・外部ファイル（ルール5）・CSS の画像・NFC・旧サービスへの参照・サイトマップ（HTML と sitemap.xml）・"
       "404 の基準パス・画面幅の区切り）")
