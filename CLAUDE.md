@@ -83,7 +83,8 @@
 4. ファイル名は半角英小文字・数字・ハイフン（例 `assets/img/services/history-6.jpg`）。
 5. `<img>` には `width` と `height`（PC幅 1280px での表示サイズ。縦横比は元画像と同じ）、`alt`、2枚目以降は `loading="lazy"` を付ける。
 6. CSS（`style.css`）から使っている画像もある（HTML を探しても見つからない）。差し替え・改名したら `style.css` の `url()` と切り取り位置も見直す（`url()` のリンク切れは `tools/check_site.py` が検出する）。
-   - `common/header-bg.jpg`：見出し帯とホームのヒーローの写真（4か所。位置は場所ごとの `background-position`）
+   - `common/header-bg.jpg`：見出し帯とホームのヒーローの写真（位置は場所ごとの `background-position`）
+   - ホームのヒーロー：`.home-hero__slide--1〜3` が `header-bg.jpg`・`home/slide-04.jpg`・`slide-05.jpg` を CSS だけで7秒ごとに切り替える（写真を変えるときは `.home-hero__slide--N` の `url()` と `background-position` を直す。枚数を変えるなら HTML の `<span>` と `@keyframes hero-photo` の割合も直す）
    - `common/logo.png`：`.site-logo` が左右の余白を切り取っている（画像のピクセルで 左45・幅302・高さ179 の数値）
    - `common/side-photo.jpg`：お問い合わせ帯の写真（`object-fit` で切り取り。スマホは `object-position`）
    - `company/office.jpg` と `equipment/hatsukaichi-2.jpg`：ホームの写真タイル（`.subnav__tile--…` の `--tile-img`。会社概要・機材センターのページの写真と同じファイルなので、差し替えるとタイルも変わる）

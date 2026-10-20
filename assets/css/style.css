@@ -1244,26 +1244,65 @@ hr {
 
 /* ---------- 7. ホーム ---------- */
 
-/* ヒーロー：大きな写真の上に見出し。下辺は斜め */
+/* ヒーロー：大きな写真の上に見出し。下辺は斜め。
+   写真は .home-hero__bg の中に重ねてあり、数秒ごとにゆっくり切り替わる（CSS だけで動く。JS は不要）。
+   濃い色の重ね（::before）が見出しの読みやすさを保つ */
 .home-hero {
   --c-focus: var(--c-blue-light);
+  --hero-photo-time: 7s;
   position: relative;
   background-color: var(--c-ink);
+  color: var(--c-on-ink);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--slant)), 0 100%);
+}
+
+.home-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   background-image:
     linear-gradient(90deg,
       rgb(var(--c-ink-rgb) / .96) 0%,
       rgb(var(--c-ink-rgb) / .88) 36%,
       rgb(var(--c-ink-rgb) / .3) 70%,
       rgb(var(--c-ink-rgb) / .08) 100%),
-    linear-gradient(0deg, rgb(var(--c-ink-rgb) / .55) 0%, rgb(var(--c-ink-rgb) / 0) 40%),
-    url("../img/common/header-bg.jpg");
-  background-position: 0 0, 0 0, 62% 50%;
-  background-size: auto, auto, cover;
-  color: var(--c-on-ink);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--slant)), 0 100%);
+    linear-gradient(0deg, rgb(var(--c-ink-rgb) / .55) 0%, rgb(var(--c-ink-rgb) / 0) 40%);
+}
+
+.home-hero__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* 写真1枚ぶん。全部で3枚（21秒で一巡）。最初の1枚は最初から見えている */
+.home-hero__slide {
+  position: absolute;
+  inset: 0;
+  background-position: 62% 50%;
+  background-size: cover;
+  opacity: 0;
+  animation: hero-photo calc(var(--hero-photo-time) * 3) linear infinite;
+}
+
+.home-hero__slide--1 { background-image: url("../img/common/header-bg.jpg"); animation-delay: -.3s; opacity: 1; }
+.home-hero__slide--2 { background-image: url("../img/home/slide-04.jpg"); background-position: 50% 60%; animation-delay: calc(var(--hero-photo-time) - .3s); }
+.home-hero__slide--3 { background-image: url("../img/home/slide-05.jpg"); background-position: 50% 62%; animation-delay: calc(var(--hero-photo-time) * 2 - .3s); }
+
+/* 1.2秒かけて現れ、次の写真と入れ替わる間も少し重なる。見えている間はごくゆっくり拡大 */
+@keyframes hero-photo {
+  0%    { opacity: 0; transform: scale(1); }
+  6%    { opacity: 1; }
+  33.3% { opacity: 1; }
+  39%   { opacity: 0; transform: scale(1.07); }
+  100%  { opacity: 0; transform: scale(1.07); }
 }
 
 .home-hero__inner {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1307,16 +1346,20 @@ hr {
 
 @media (max-width: 767.98px) {
   /* 写真を上に置き、文字はその下の濃い面に載せる */
-  .home-hero {
-    background-image:
-      linear-gradient(180deg,
-        rgb(var(--c-ink-rgb) / .2) 0%,
-        rgb(var(--c-ink-rgb) / .55) 30%,
-        var(--c-ink) 56%),
-      url("../img/common/header-bg.jpg");
-    background-position: 0 0, 66% 0;
-    background-size: auto, max(100%, 650px) auto; /* 写真は帯の幅いっぱい（狭い画面では幅650pxで中央寄りを切り取る） */
-    background-repeat: no-repeat;
+  .home-hero::before {
+    background-image: linear-gradient(180deg,
+      rgb(var(--c-ink-rgb) / .2) 0%,
+      rgb(var(--c-ink-rgb) / .55) 30%,
+      var(--c-ink) 56%);
+  }
+
+  .home-hero__bg {
+    bottom: auto;
+    height: 520px;
+  }
+
+  .home-hero__slide {
+    background-position: 66% 30%;
   }
 
   .home-hero__inner {
@@ -2924,6 +2967,10 @@ html.lightbox-open .nav-toggle {
 /* ---------- 15. 動きを減らす設定 ---------- */
 
 @media (prefers-reduced-motion: reduce) {
+  .home-hero__slide {
+    animation: none;
+  }
+
   *,
   *::before,
   *::after {
