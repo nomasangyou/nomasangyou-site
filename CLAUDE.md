@@ -115,6 +115,7 @@ im.convert("RGB").save("assets/img/xxx/yyy.jpg", "JPEG", quality=80, optimize=Tr
 - HTML に `<style>`・`style="…"`・`onclick="…"` などを書かない（止められる）。見た目は `style.css`、動きは `main.js` に書く。
 - 外部サイトへの普通のリンク（`<a href>`）は制限されない。
 - GitHub Pages ではサーバー側の設定ができないため、他サイトの枠の中に表示されるのを防ぐ指定（`frame-ancestors`）は効かない。
+- Google 翻訳のウェブページ翻訳（検索結果の「このページを訳す」・translate.goog）を通すと、このサイトは翻訳されず、いまは見た目も崩れる（Chrome・Edge・Safari などブラウザ内蔵の翻訳は使える）。独自ドメインに切り替えた後は、全ページの CSP の `script-src`・`style-src`・`img-src` に `https://www.nomasangyou.com` を足すと、翻訳はされないが崩れずに表示される（`check_site.py` はこの追加だけは認める）。
 
 ### プライバシーポリシー
 文面はオーナーの指示なく変えない。旧サイト前提の記述（Google アナリティクス、reCAPTCHA、ホスティング事業者のアクセス解析）が残っている。改訂するときはオーナーに案を見せてから。項目は `<section class="policy__section">` の中に見出し `<h2 class="policy__title">` と本文 `<div class="policy__text">`。

@@ -149,6 +149,12 @@ if CSP:
     if set(pol) != CSP_DIRECTIVES or None in pol.values():
         problems.append(f"index.html: セキュリティの指定（CSP）の種類は {', '.join(sorted(CSP_DIRECTIVES))} を1つずつ"
                         f"（足りない: {', '.join(sorted(CSP_DIRECTIVES - set(pol))) or 'なし'}／余分・重複: {', '.join(sorted(k for k in pol if k not in CSP_DIRECTIVES or pol[k] is None)) or 'なし'}）")
+    # 独自ドメインに切り替えた後は、Google 翻訳（translate.goog）経由でも崩れずに出るよう、本番の読み込み元を
+    # script-src・style-src・img-src に足してよい（CLAUDE.md「セキュリティの指定（CSP）」）
+    prod = SITE.rstrip("/")
+    for k in ("script-src", "style-src", "img-src"):
+        if pol.get(k) and prod in pol[k]:
+            pol[k] = [v for v in pol[k] if v != prod]
     for k, want in CSP_FIXED.items():
         if pol.get(k) is not None and k in pol and sorted(pol[k]) != sorted(want):
             problems.append(f"index.html: CSP の {k} は {' '.join(want)} のまま（ゆるめない）。いま: {' '.join(pol[k])}")
