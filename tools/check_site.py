@@ -20,7 +20,12 @@ SITE = "https://www.nomasangyou.com/"
 # 旧サイトのサービス名。このファイル自体が全文検索に引っかからないよう、分割して書いている。
 OLD_SERVICE = [("jim" + x).encode() for x in ("do", "cdn", "static")]
 # グローバルナビの現在位置・タブ・パンくずを付けないページ
-NO_CURRENT = {"sitemap/", "j/privacy/", "404.html"}
+NO_CURRENT = {"sitemap/", "j/privacy/", "404.html", "koukoku/"}
+# 電子公告の公告1件ずつのページ（共通部分・JS を持たない独立したページ。CLAUDE.md「電子公告を掲載する」）
+NOTICE_RE = re.compile(r"^koukoku/[^/]+/index\.html$")
+notice_pages = []
+# 公告のページの CSP は固定（サイト全体の CSP を変えても、公告期間中の公告のページを書き換えなくて済むように。スクリプト・埋め込みなし）
+NOTICE_CSP = "default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'self'; form-action 'none'"
 problems = []
 # セキュリティの指定（CSP）。全ページの <head> に同じものを1つ置く（基準は index.html）
 CSP_RE = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
@@ -180,9 +185,14 @@ for page in pages():
     r = r.replace(os.sep, "/")
     me = page_path(r)
     body = s[s.find("<body"):]
+    is_notice = bool(NOTICE_RE.match(r))
+    if is_notice:
+        notice_pages.append(me)
+        if re.search(r"<script\b", s):
+            problems.append(f"{r}: 公告のページにはスクリプトを置かない（公告期間中に中身が変わらないように）")
 
     # 2. 必須要素。canonical と og:url はこのページ自身のURL（ページをコピーして作ったときの直し忘れ）
-    for need in ("<title>", '<meta charset="utf-8">', 'name="viewport"', "assets/css/style.css", "assets/js/main.js"):
+    for need in ("<title>", '<meta charset="utf-8">', 'name="viewport"', "assets/css/style.css") + (() if is_notice else ("assets/js/main.js",)):
         if need not in s:
             problems.append(f"{r}: {need} がない")
     if not is404:
@@ -194,7 +204,9 @@ for page in pages():
     # セキュリティの指定（CSP）：全ページ同じものを、<base> とスクリプトより前に1つ。
     # ページ内に直接書いたスクリプトは、その中身のハッシュが script-src に載っているものだけ動く
     csps = CSP_RE.findall(s)
-    if len(csps) != 1 or csps[0] != CSP:
+    if is_notice and csps != [NOTICE_CSP]:
+        problems.append(f"{r}: 公告のページのセキュリティの指定（CSP）は決まった形 {NOTICE_CSP} を1つだけ置く")
+    elif not is_notice and (len(csps) != 1 or csps[0] != CSP):
         problems.append(f"{r}: セキュリティの指定（CSP）の <meta> を index.html と同じものにして1つだけ置く")
     elif re.search(r"<(script|base)\b", s[: s.find("Content-Security-Policy")]):
         problems.append(f"{r}: セキュリティの指定（CSP）の <meta> は <base> と <script> より前に置く")
@@ -283,6 +295,8 @@ for page in pages():
     if h1_count != 1:
         problems.append(f"{r}: <h1> が1つではない（{h1_count}個）")
     hero = between(s, '<div class="page-hero">', "<!-- ===== 見出し帯ここまで")
+    if is_notice:
+        continue  # 公告のページは共通部分・ナビ・見出し帯を持たない（以下の確認は対象外）
     if me and '<h1 class="page-title"' not in hero:
         problems.append(f'{r}: 見出し帯（<div class="page-hero"> … <!-- ===== 見出し帯ここまで ===== -->）の中に <h1 class="page-title"> がない')
 
@@ -358,6 +372,15 @@ for h in csp_sources(CSP, "script-src")[1:]:
     if HASH_RE.fullmatch(h) and h not in inline_hashes:
         problems.append(f"使われていないハッシュ {h} を全ページの CSP の script-src から消す")
 
+# 電子公告：公告のページは一覧（koukoku/index.html）からリンクする（登記したURLからたどれるように）
+if os.path.exists(os.path.join(ROOT, "koukoku", "index.html")):
+    listed = {site_path("koukoku/index.html", h) for h in re.findall(r'<a\b[^>]*\bhref="([^"]*)"', between(read("koukoku/index.html"), '<div class="page-body">', "</main>"))}
+    for n in notice_pages:
+        if n not in listed:
+            problems.append(f"{n}index.html: 公告のページが電子公告の一覧（koukoku/index.html）からリンクされていない")
+else:
+    problems.append("koukoku/index.html（電子公告の一覧。登記したURL）がない。消さない・URLを変えない")
+
 # 7. サイトマップ（sitemap/index.html と 404.html の一覧）はグローバルナビと同じページを同じ順に
 for r in ("sitemap/index.html", "404.html"):
     lst = between(read(r), '<ul class="sitemap">', "</main>")
@@ -372,7 +395,7 @@ sm = open(os.path.join(ROOT, "sitemap.xml"), encoding="utf-8").read()
 locs = {urllib.parse.unquote(u) for u in re.findall(r"<loc>(.*?)</loc>", sm)}
 for page in pages():
     r = rel(page).replace(os.sep, "/")
-    if r in ("404.html", "sitemap/index.html", "j/privacy/index.html"):
+    if r in ("404.html", "sitemap/index.html", "j/privacy/index.html") or NOTICE_RE.match(r):
         continue
     url = SITE + r[: -len("index.html")]
     if url not in locs:
@@ -428,4 +451,4 @@ if problems:
     sys.exit(1)
 print(f"OK: {sum(1 for _ in pages())} ページを確認しました（リンク切れ・h1と見出し帯・共通部分・ナビの現在位置・タブ・パンくず・"
       "写真タイル・canonical/og:url・セキュリティの指定（CSP）・外部ファイル（ルール5）・CSS の画像・NFC・旧サービスへの参照・サイトマップ（HTML と sitemap.xml）・"
-      "404 の基準パス・画面幅の区切り）")
+      "404 の基準パス・画面幅の区切り・電子公告）")

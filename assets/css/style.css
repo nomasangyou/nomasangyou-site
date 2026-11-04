@@ -20,6 +20,7 @@
    14. ライトボックス（画像の拡大表示）
    15. 動きを減らす設定
    16. 強制カラー（Windows のコントラスト テーマ）
+   17. 電子公告（一覧ページと、公告1件ずつのページ）
 
    画面幅の区切り（各部品のすぐ後ろに書いている）
    - 960px：これ未満はメニューボタン（main.js の NAV_BREAKPOINT と必ず同じ値にする）
@@ -3014,5 +3015,127 @@ html.lightbox-open .nav-toggle {
   .global-nav__expand::before,
   .global-nav__expand::after {
     background: CanvasText;
+  }
+}
+
+/* ---------- 17. 電子公告（一覧ページと、公告1件ずつのページ） ----------
+   一覧（koukoku/index.html）はふつうのページ。公告1件ずつのページ（koukoku/<日付-名前>/index.html）は
+   共通部分も JS も持たない独立したページで、ここの .page-notice-doc 以下だけで見た目を付ける */
+
+.notice-index {
+  max-width: 880px;
+}
+
+.notice-index > * + * {
+  margin-top: 24px;
+}
+
+/* 掲載中の公告の一覧：1件ずつ、掲載日・件名（リンク）・公告期間 */
+.notice-list {
+  padding: 0;
+  list-style: none;
+  border-top: 3px solid var(--c-ink);
+}
+
+.notice-list > li {
+  display: grid;
+  grid-template-columns: 9.5em minmax(0, 1fr);
+  gap: 4px 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.notice-list__date,
+.notice-list__period {
+  color: var(--c-text-muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.notice-list__title {
+  font-weight: 700;
+}
+
+.notice-list__period {
+  grid-column: 2;
+}
+
+.notice-list__empty {
+  padding: 24px;
+  background: var(--c-bg-alt);
+  color: var(--c-text-muted);
+}
+
+@media (max-width: 599.98px) {
+  .notice-list > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .notice-list__period {
+    grid-column: auto;
+  }
+}
+
+/* 公告1件ずつのページ：白い紙に本文だけ。印刷してもそのまま読める */
+.page-notice-doc {
+  background: var(--c-bg-alt);
+}
+
+.notice-doc {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 64px) var(--gutter);
+}
+
+.notice-doc__back a {
+  font-size: 14px;
+}
+
+.notice-doc__paper {
+  margin-top: 16px;
+  padding: clamp(24px, 5vw, 56px);
+  border-top: 6px solid var(--c-blue);
+  background: var(--c-bg);
+}
+
+.notice-doc__paper > * + * {
+  margin-top: 1.2em;
+}
+
+.notice-doc__title {
+  font-size: clamp(22px, 3vw, 30px);
+  text-align: center;
+}
+
+.notice-doc__date,
+.notice-doc__sign {
+  text-align: right;
+}
+
+.notice-doc__body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.notice-doc__body th,
+.notice-doc__body td {
+  padding: 6px 10px;
+  border: 1px solid var(--c-line);
+  text-align: left;
+}
+
+@media print {
+  .page-notice-doc {
+    background: none;
+  }
+
+  .notice-doc__back {
+    display: none;
+  }
+
+  .notice-doc__paper {
+    padding: 0;
+    border: 0;
   }
 }

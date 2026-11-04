@@ -18,6 +18,8 @@
 | `/お問合せフォーム/` | `お問合せフォーム/index.html` | フォーム埋め込み枠 `#contact-form` |
 | `/sitemap/` | `sitemap/index.html` | HTMLのサイトマップ |
 | `/j/privacy/` | `j/privacy/index.html` | プライバシーポリシー |
+| `/koukoku/` | `koukoku/index.html` | 電子公告の一覧（法務局に登記するURL。下の「電子公告を掲載する」） |
+| `/koukoku/<日付-名前>/` | `koukoku/<日付-名前>/index.html` | 公告1件ずつのページ（共通部分も JS も持たない独立したページ） |
 | （存在しないURL） | `404.html` | GitHub Pages が自動で使う |
 
 - `assets/css/style.css` … 全ページ共通のCSS（1ファイルだけ。先頭に目次。部品ごとに、その直後へ `@media` を書く）
@@ -31,13 +33,14 @@
 
 1. **URLを変えない。** フォルダ名・ファイル名を変えない、消さない。日本語のフォルダ名は Unicode NFC にする（macOS で作ったフォルダは NFD になることがあるので注意）。
 2. **頼まれていない文章・数値・会社情報を変えない。** 誤字や古い表記に気づいたら、直さずに報告する。
-3. **共通部分は全ページで揃える。** 各HTMLの `<!-- ===== 共通… ===== -->` コメントで始まる3つの部分（ヘッダー＋グローバルナビ、お問い合わせ帯、フッター）は全12ファイルで同じ内容。どれか1つを変えたら、残りもすべて同じように変える（違うのは下の「ページごとに変わる部分」だけ）。
+3. **共通部分は全ページで揃える。** 各HTMLの `<!-- ===== 共通… ===== -->` コメントで始まる3つの部分（ヘッダー＋グローバルナビ、お問い合わせ帯、フッター）は全ページ（公告1件ずつのページを除く）で同じ内容。どれか1つを変えたら、残りもすべて同じように変える（違うのは下の「ページごとに変わる部分」だけ）。
 4. **リンクと画像は相対パス。** `/` から始まるパスや `https://www.nomasangyou.com/…` をリンクに使わない（github.io のプレビューでも独自ドメインでも動くようにするため）。例外は `<link rel="canonical">`・OGP（`og:url` `og:image` など）・`sitemap.xml` で、これらは `https://www.nomasangyou.com/` の絶対URL。
 5. **外部ライブラリ・CDN・Webフォントを使わない。** JSは `assets/js/main.js`、CSSは `assets/css/style.css` に書く。外部から読むのは Google マップの地図枠（キー不要の `maps.google.com/maps?q=…&output=embed`）と、お問い合わせフォームの埋め込み（下の手順）だけ。ほかの埋め込み（YouTube など）はオーナーの確認なしに増やさない。
 6. **画像は最適化してから置く**（下の手順）。旧サイトのサービス（画像配信サーバーなど）への参照は作らない（`tools/check_site.py` が検出する）。
 7. **独自ドメイン・DNS には触れない。** `CNAME` ファイルはオーナーの指示があるまで作らない。
 8. **ビルドの仕組みを持ち込まない**（静的サイトジェネレーター、npm のビルド、Jekyll など）。
-9. **セキュリティの指定（CSP）を消さない・ゆるめない。** 全ページの `<head>` の `<meta http-equiv="Content-Security-Policy" …>` は全12ファイルで同じ内容（下の「セキュリティの指定（CSP）」）。変えてよいのは「お問い合わせフォームを入れる」の `frame-src`／`form-action` と、ページ内スクリプトのハッシュだけ。
+9. **セキュリティの指定（CSP）を消さない・ゆるめない。** 全ページの `<head>` の `<meta http-equiv="Content-Security-Policy" …>` は全ページ（公告1件ずつのページを除く）で同じ内容（下の「セキュリティの指定（CSP）」）。公告1件ずつのページは、変える必要のない決まった形（スクリプトも埋め込みも許さない）。変えてよいのは「お問い合わせフォームを入れる」の `frame-src`／`form-action` と、ページ内スクリプトのハッシュだけ。
+10. **電子公告のURLと掲載中の公告を変えない。** `koukoku/` は法務局に登記するURL（登記アドレス）なので、フォルダ名を変えない・消さない。公告1件ずつのページは、公告期間が終わるまで中身を1文字も変えず、消さない（変えると改ざん・中断の扱いになる）。期間が終わった公告を一覧から外す・消すのはオーナーの指示があったときだけ。
 
 ## ページの組み立て（上から順に）
 
@@ -108,7 +111,7 @@ im.convert("RGB").save("assets/img/xxx/yyy.jpg", "JPEG", quality=80, optimize=Tr
 `お問合せフォーム/index.html` の `<div class="form-embed" id="contact-form">` の中に、選んだサービスの埋め込みコード（iframe など）を入れる。中が空（コメントだけ）の間は表示されない（入れるとあいさつ文と連絡先の下に全幅で出る）。埋め込みの読み込み元（例 Google フォームなら `https://docs.google.com`）を全ページの CSP の `frame-src` に足す。iframe ではなく `<form action="https://…">` で送るサービスなら、全ページの CSP の `form-action 'none'` を `'self'` とその送信先に変える（例 `form-action 'self' https://ssgform.com`。`'self'` は送信後に自サイトのお礼ページへ戻す設定でも止められないように）。埋め込みコードに `<script>`・`<style>`・`style="…"`・`onload="…"` などが入っていたら、そのままでは止められるので、`main.js`／`style.css` に移せるか確かめる（移せないものはオーナーに相談）。足りないものは `check_site.py` が指摘する。入れたらプライバシーポリシーの記載（委託先・reCAPTCHA など）も見直す（オーナーの確認が必要）。
 
 ### セキュリティの指定（CSP）
-各ページの `<head>`（viewport の次。`<base>` やスクリプトより前）にある `<meta http-equiv="Content-Security-Policy" …>` が、ページで動かしてよいものを決めている。万一ページに悪いスクリプトを差し込まれても動かないようにするためのもの。全12ファイルで同じ内容にする（`check_site.py` が確かめる）。
+各ページの `<head>`（viewport の次。`<base>` やスクリプトより前）にある `<meta http-equiv="Content-Security-Policy" …>` が、ページで動かしてよいものを決めている。万一ページに悪いスクリプトを差し込まれても動かないようにするためのもの。全ページで同じ内容にする（公告1件ずつのページだけは、サイトの CSP を変えても書き換えずに済むよう、決まった形のものを使う。どちらも `check_site.py` が確かめる）。
 - 自サイトから読み込めるのはスクリプト（`main.js`）・CSS（`style.css`）・画像だけ（CSS の中の小さなアイコンの `data:` も可）。外部から読めるのは埋め込みの `frame-src`（いまは Google マップの `https://maps.google.com` と `https://www.google.com`）だけ。
 - 動画・音声（`<video>` `<audio>`）、PDF などのページ内への埋め込み（`<iframe>` `<object>` `<embed>`）、Webフォント、`main.js` からの `fetch` は止められる。動画は YouTube などへのリンク、PDF は普通の `<a href>` リンクにする（ページに埋め込む必要があるならオーナーに確認する）。
 - ページ内に直接書いたスクリプト（`<script>…</script>`。いまは全ページの `js` クラスの1行と、404.html の基準パスの1つ）は、中身のハッシュ（`'sha256-…'`）を `script-src` に載せたものだけ動く。中身を1文字でも変えたら全ページの CSP のハッシュも直し、古いハッシュは消す（正しい値は `check_site.py` が表示する）。新しい処理は `main.js` に書く（ページに `<script>…</script>` を増やさない）。
@@ -116,6 +119,58 @@ im.convert("RGB").save("assets/img/xxx/yyy.jpg", "JPEG", quality=80, optimize=Tr
 - 外部サイトへの普通のリンク（`<a href>`）は制限されない。
 - GitHub Pages ではサーバー側の設定ができないため、他サイトの枠の中に表示されるのを防ぐ指定（`frame-ancestors`）は効かない。
 - Google 翻訳のウェブページ翻訳（検索結果の「このページを訳す」・translate.goog）を通すと、このサイトは翻訳されず、いまは見た目も崩れる（Chrome・Edge・Safari などブラウザ内蔵の翻訳は使える）。独自ドメインに切り替えた後は、全ページの CSP の `script-src`・`style-src`・`img-src` に `https://www.nomasangyou.com` を足すと、翻訳はされないが崩れずに表示される（`check_site.py` はこの追加だけは認める）。
+
+### 電子公告を掲載する
+会社法の公告（決算公告、合併・資本金の額の減少などの公告）を、`koukoku/` に載せる。法務省の要件（定款に「電子公告」の定め、公告ページのURLの登記、決算公告以外は法務大臣の登録を受けた電子公告調査機関の調査、決算公告は要旨ではなく全文、公告期間中は続けて掲載）を満たすための手順。法律上の判断・定款・登記・調査機関との契約はオーナー（必要に応じて司法書士など）が行い、ここでは掲載作業だけをする。
+1. **原稿を受け取る。** 公告の全文（件名・公告日・本文・本店所在地・商号・代表者）と、公告期間（いつからいつまで掲載するか）を、オーナーから受け取る。文章・数字は原稿のとおり一字一句そのまま載せ、足したり言い換えたりしない。決算公告の貸借対照表などは表（`<table>`）で載せる（画像だけにしない）。PDF も載せる場合は `<a href>` のリンクにする（ページに埋め込むと CSP で止められる）。
+2. **公告のページを作る。** フォルダ名は `koukoku/<掲載日の8桁>-<半角英小文字の名前>/`（例 `koukoku/20270630-kessan-58/`）。中身は下のひな形。共通部分（ヘッダー・ナビ・お問い合わせ帯・フッター）と `main.js`・スクリプトは入れない（サイト全体の変更で公告の中身が変わらないように。`check_site.py` が確かめる）。
+3. **一覧に足す。** `koukoku/index.html` の「現在、掲載している公告はありません。」の段落を消し、`<ol class="notice-list">` に1件ずつ `<li>` を足す（新しいものを上に）：
+   ```html
+   <ol class="notice-list">
+     <li>
+       <span class="notice-list__date">【掲載日】</span>
+       <a class="notice-list__title" href="【フォルダ名】/">【公告の件名】</a>
+       <span class="notice-list__period">公告期間：【開始日】～【終了日】</span>
+     </li>
+   </ol>
+   ```
+4. **確かめる。** `python3 tools/check_site.py` が OK になり、原稿と画面の文字が一致することを確かめてから、掲載開始の日時に合わせて `main` に反映する（反映はオーナーの OK のあと）。決算公告以外は、公告のページのURL（公告アドレス）と公告期間を、オーナーから電子公告調査機関に伝えてもらう。
+5. **公告期間中は触らない。** 公告のページは変えない・消さない。一覧ページ（`koukoku/index.html`）とサイトの共通部分は変えてよいが、公告へのリンクは切らない（調査機関は登記アドレスから公告までのリンクも確かめる）。
+6. **期間が終わったら**、オーナーの指示で一覧から外し、ページを消す（決算公告の公告期間は、定時株主総会の終結の日後5年を経過する日まで）。
+
+公告のページのひな形（【】を原稿で埋める。CSP の行はこのまま。サイト全体の CSP とは別の決まった形）：
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'self'; form-action 'none'">
+<title>【公告の件名】 - 株式会社野間産業</title>
+<link rel="canonical" href="https://www.nomasangyou.com/koukoku/【フォルダ名】/">
+<meta property="og:url" content="https://www.nomasangyou.com/koukoku/【フォルダ名】/">
+<link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body class="page-notice-doc">
+<main class="notice-doc" id="main">
+<p class="notice-doc__back"><a href="../">電子公告の一覧へ</a></p>
+<article class="notice-doc__paper">
+<h1 class="notice-doc__title">【公告の件名】</h1>
+<p class="notice-doc__date">【公告日】</p>
+<div class="notice-doc__body">
+【公告の本文（段落は <p>、表は <table><tbody><tr><th scope="row">…</th><td>…</td></tr></tbody></table>）】
+</div>
+<p class="notice-doc__sign">【本店所在地】<br>【商号】<br>【代表者】</p>
+</article>
+</main>
+</body>
+</html>
+```
+
+**注意**
+- 登記するURLは本番のドメインのもの（`https://www.nomasangyou.com/koukoku/`）。独自ドメインの切り替え（GitHub Pages に向ける）が終わるまでは、このURLには旧サイトが出るので、登記・掲載開始は切り替えのあとにする。
+- GitHub Pages には稼働の保証（SLA）がない。公告期間中に止まった場合に備え、定款に予備の公告方法（官報など）を定めておくか、オーナーが司法書士などに確認する。
+- 掲載が中断したことに気づいたら、すぐオーナーに知らせる（中断の扱いや追加の公告が必要かは、法律上の判断になる）。
 
 ### プライバシーポリシー
 文面はオーナーの指示なく変えない。旧サイト前提の記述（Google アナリティクス、reCAPTCHA、ホスティング事業者のアクセス解析）が残っている。改訂するときはオーナーに案を見せてから。項目は `<section class="policy__section">` の中に見出し `<h2 class="policy__title">` と本文 `<div class="policy__text">`。
@@ -126,7 +181,7 @@ im.convert("RGB").save("assets/img/xxx/yyy.jpg", "JPEG", quality=80, optimize=Tr
 ## 変更したら必ず確認する
 
 ```sh
-python3 tools/check_site.py          # リンク切れ・h1と見出し帯・共通部分の不一致・ナビの現在位置・タブ・パンくず・写真タイル・canonical/og:url・セキュリティの指定（CSP）・外部ファイル（ルール5）・CSS の画像・NFC・旧サービスへの参照・サイトマップ（HTML と sitemap.xml）の漏れ・404 の基準パス・画面幅の区切り
+python3 tools/check_site.py          # リンク切れ・h1と見出し帯・共通部分の不一致・ナビの現在位置・タブ・パンくず・写真タイル・canonical/og:url・セキュリティの指定（CSP）・外部ファイル（ルール5）・CSS の画像・NFC・旧サービスへの参照・サイトマップ（HTML と sitemap.xml）の漏れ・404 の基準パス・画面幅の区切り・電子公告
 python3 -m http.server 8000          # http://localhost:8000/ で表示を確認（PC幅とスマホ幅）
 ```
 - 表示確認では、スマホ幅でメニューの開閉、PC幅でナビの ∨ ボタン（ドロップダウン）、トップのスライドショー、画像の拡大表示も触ってみる。
